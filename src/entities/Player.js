@@ -1,3 +1,4 @@
+// FILE: src/entities/Player.js
 import Phaser from "phaser";
 import config from "../config.js";
 
@@ -16,11 +17,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.lastShot = 0;
     this.lastDash = 0;
 
-    // Enable gamepad input safely
-    scene.input.gamepad.once("connected", pad => { this.pad = pad; });
+    this.pad = null;
 
     // Keyboard controls
     this.keys = scene.input.keyboard.addKeys("W,A,S,D,SPACE");
+
+    // Safely enable gamepad if plugin exists
+    if (scene.input && scene.input.gamepad) {
+      scene.input.gamepad.once("connected", pad => { this.pad = pad; });
+    }
 
     // Procedural graphics
     const g = scene.add.graphics();
@@ -73,5 +78,23 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   tryShoot(time) {
-    i
+    if (time - this.lastShot < this.fireRate) return;
+    this.lastShot = time;
+    this.scene.spawnBullet(this.x, this.y, this.rotation);
+  }
+
+  tryDash(time) {
+    if (time - this.lastDash < this.dashCooldown) return;
+    this.lastDash = time;
+    const dx = Math.cos(this.rotation);
+    const dy = Math.sin(this.rotation);
+    this.setVelocity(dx * 800, dy * 800);
+    this.scene.time.delayedCall(150, () => this.setVelocity(0, 0));
+  }
+
+  takeDamage(dmg) {
+    this.hp -= dmg;
+    if (this.hp <= 0) this.scene.playerDie();
+  }
+}
 
