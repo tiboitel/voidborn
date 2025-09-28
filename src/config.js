@@ -24,4 +24,3 @@ export default {
     rarity: { common: 0.7, rare: 0.25, epic: 0.05 }
   }
 };
-
