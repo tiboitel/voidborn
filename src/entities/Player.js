@@ -90,8 +90,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 		if (time - this.lastDash < this.dashCooldown) return;
 		this.lastDash = time;
 		const dx = Math.cos(this.rotation), dy = Math.sin(this.rotation);
-		this.setVelocity(dx * 1000, dy * 1000);
-		this.scene.cameras.main.flash(50, 120, 0, 255);
+		this.setVelocity(dx * 4000, dy * 4000);
 		this.scene.time.delayedCall(200, () => this.setVelocity(0, 0));
 	}
 
