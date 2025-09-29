@@ -31,6 +31,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 	}
 
 	preUpdate(_, dt) {
+		super.preUpdate(time, dt);
 		const p = this.scene.player;
 		if (!p) return;
 		const dx = p.x - this.x,

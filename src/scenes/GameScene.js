@@ -2,6 +2,7 @@
 import Player from "../entities/Player.js";
 import Enemy from "../entities/Enemy.js";
 import Bullet from "../entities/Bullet.js";
+import WaveSpawner from "../systems/WaveSpawner.js";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -10,9 +11,13 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     this.player = new Player(this, this.scale.width / 2, this.scale.height / 2);
-    this.enemies = this.physics.add.group();
-    this.bullets = this.physics.add.group({ classType: Bullet });
 
+    this.enemies = this.physics.add.group();
+    this.bullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+
+    this.waveSpawner = new WaveSpawner(this);
+
+    // Collisions
     this.physics.add.collider(this.bullets, this.enemies, (bullet, enemy) => {
       if (!bullet.active || !enemy.active) return;
       enemy.takeDamage(bullet.damage);
@@ -25,38 +30,29 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnBullet(x, y, rot, dmg = 15) {
-    const enemies = this.enemies.getChildren();
-
     let targetPoint = null;
-    if (enemies.length > 0) {
-      let closest = null;
-      let minDistSq = Infinity;
-      for (let e of enemies) {
-        const d = Phaser.Math.Distance.Squared(x, y, e.x, e.y);
-        if (d < minDistSq) {
-          minDistSq = d;
-          closest = e;
-        }
+    let minDistSq = Infinity;
+
+    this.enemies.getChildren().forEach(e => {
+      const d = Phaser.Math.Distance.Squared(x, y, e.x, e.y);
+      if (d < minDistSq) {
+        minDistSq = d;
+        targetPoint = new Phaser.Math.Vector2(e.x, e.y);
       }
-      if (closest) {
-        targetPoint = new Phaser.Math.Vector2(closest.x, closest.y);
-      }
-    }
+    });
 
-    const bullet = new Bullet(this, x, y, targetPoint, rot, dmg);
-    this.bullets.add(bullet);
-  }
-
-  spawnWave() {
-
-    this.wave = (this.wave || 0) + 1;
-    for (let i = 0; i < 5 + this.wave; i++) {
-      const x = Phaser.Math.Between(0, this.scale.width);
-      const y = Phaser.Math.Between(0, this.scale.height);
-      const e = new Enemy(this, x, y, "melee", this.wave);
-      this.enemies.add(e);
+    // 🔥 Use group.get to create with Arcade body
+    const bullet = this.bullets.get(x, y, "bullet");
+    if (bullet) {
+      bullet.fire(this, targetPoint, rot, dmg);
     }
   }
+
+  update(t, dt) {
+    this.player.update(t);
+    this.waveSpawner.update(t, dt);
+  }
+
 
   enemyDie(enemy) {
     this.events.emit("enemy-dead", { xp: 10 });
@@ -67,12 +63,5 @@ export default class GameScene extends Phaser.Scene {
     this.scene.get("UIScene").events.emit("player-dead", { wave: this.wave });
   }
 
-  update(t) {
-    this.player.update(t);
-    if (!this.nextWave || t > this.nextWave) {
-      this.spawnWave();
-      this.nextWave = t + 5000;
-    }
-  }
 }
 
