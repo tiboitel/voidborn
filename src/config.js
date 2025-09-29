@@ -7,8 +7,8 @@ export default {
   player: {
     hp: 100,
     speed: 220,
-    fireRate: 200,
-    bulletDamage: 15,
+    fireRate: 20,
+    bulletDamage: 30,
     dashCooldown: 1000
   },
   enemies: {
