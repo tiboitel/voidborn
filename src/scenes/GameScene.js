@@ -1,57 +1,78 @@
+// FILE: src/scenes/GameScene.js (spawnBullet fixed)
 import Player from "../entities/Player.js";
 import Enemy from "../entities/Enemy.js";
+import Bullet from "../entities/Bullet.js";
 
 export default class GameScene extends Phaser.Scene {
-	constructor(){ super("GameScene"); }
+  constructor() {
+    super("GameScene");
+  }
 
-	create(){
-		this.player=new Player(this,this.scale.width/2,this.scale.height/2);
-		this.enemies=this.physics.add.group();
-		this.bullets=this.physics.add.group();
-		this.wave=0; this.nextWave=0;
+  create() {
+    this.player = new Player(this, this.scale.width / 2, this.scale.height / 2);
+    this.enemies = this.physics.add.group();
+    this.bullets = this.physics.add.group({ classType: Bullet });
 
-		this.physics.add.collider(this.bullets,this.enemies,
-			(b,e)=>{ e.takeDamage(15); b.destroy(); });
+    this.physics.add.collider(this.bullets, this.enemies, (bullet, enemy) => {
+      if (!bullet.active || !enemy.active) return;
+      enemy.takeDamage(bullet.damage);
+      bullet.destroy();
+    });
 
-		this.physics.add.overlap(this.player,this.enemies,
-			(p,e)=>{ p.takeDamage(e.dmg); });
-	}
+    this.physics.add.overlap(this.player, this.enemies, (p, e) => {
+      p.takeDamage(e.dmg);
+    });
+  }
 
-	// FILE: src/scenes/GameScene.js (update spawnBullet)
-	spawnBullet(x, y, rot, dmg = 15) {
-		const b = this.physics.add.image(x, y, null);
-		const g = this.add.graphics();
-		g.fillStyle(0x00ffff, 1).fillCircle(0, 0, 5);
-		b.setTexture(g.generateTexture("bullet", 10, 10));
-		g.destroy();
-		b.setDisplaySize(10, 10);
+  spawnBullet(x, y, rot, dmg = 15) {
+    const enemies = this.enemies.getChildren();
 
-		b.damage = dmg;
-		b.setVelocity(Math.cos(rot) * 800, Math.sin(rot) * 800);
-		this.bullets.add(b);
-		this.time.delayedCall(1200, () => b.destroy());
-	}
+    let targetPoint = null;
+    if (enemies.length > 0) {
+      let closest = null;
+      let minDistSq = Infinity;
+      for (let e of enemies) {
+        const d = Phaser.Math.Distance.Squared(x, y, e.x, e.y);
+        if (d < minDistSq) {
+          minDistSq = d;
+          closest = e;
+        }
+      }
+      if (closest) {
+        targetPoint = new Phaser.Math.Vector2(closest.x, closest.y);
+      }
+    }
 
+    const bullet = new Bullet(this, x, y, targetPoint, rot, dmg);
+    this.bullets.add(bullet);
+  }
 
-	spawnWave(){
-		this.wave++;
-		for(let i=0;i<5+this.wave;i++){
-			const x=Phaser.Math.Between(0,this.scale.width);
-			const y=Phaser.Math.Between(0,this.scale.height);
-			const e=new Enemy(this,x,y,"melee",this.wave);
-			this.enemies.add(e);
-		}
-	}
+  spawnWave() {
 
-	enemyDie(enemy){
-		this.events.emit("enemy-dead",{xp:10});
-	}
+    this.wave = (this.wave || 0) + 1;
+    for (let i = 0; i < 5 + this.wave; i++) {
+      const x = Phaser.Math.Between(0, this.scale.width);
+      const y = Phaser.Math.Between(0, this.scale.height);
+      const e = new Enemy(this, x, y, "melee", this.wave);
+      this.enemies.add(e);
+    }
+  }
 
-	playerDie(){
-		this.scene.pause();
-		this.scene.get("UIScene").events.emit("player-dead",{wave:this.wave});
-	}
+  enemyDie(enemy) {
+    this.events.emit("enemy-dead", { xp: 10 });
+  }
 
-	update(t){ this.player.update(t); if(t>this.nextWave){ this.spawnWave(); this.nextWave=t+5000; } }
+  playerDie() {
+    this.scene.pause();
+    this.scene.get("UIScene").events.emit("player-dead", { wave: this.wave });
+  }
+
+  update(t) {
+    this.player.update(t);
+    if (!this.nextWave || t > this.nextWave) {
+      this.spawnWave();
+      this.nextWave = t + 5000;
+    }
+  }
 }
 
